@@ -247,11 +247,25 @@ const cloud = {
   async sync(){
     if(!window.vkBridge) return;
     try{
+      // Prime the cache before the async request so writes made during startup
+      // can be distinguished from values that existed before synchronization.
+      this.keys.forEach(k=>{
+        if(!(k in this.cache)){
+          try{ const v = localStorage.getItem(k); if(v!==null) this.cache[k]=v; }catch(e){}
+        }
+      });
+      const initial = {...this.cache};
       const r = await vkBridge.send('VKWebAppStorageGet',{keys:this.keys});
       const map = {};
       (r.keys||[]).forEach(({key,value})=>{ map[key]=value; });
       this.keys.forEach(k=>{
         const cv = map[k], lv = (k in this.cache) ? this.cache[k] : null;
+        // Keep values written by this page while VK Storage was loading. This
+        // prevents stale cloud dates from overwriting today's login marker.
+        if(lv !== (k in initial ? initial[k] : null)){
+          if(lv!==null && lv!==undefined) this.set(k,lv);
+          return;
+        }
         if(cv!==undefined && cv!==null && cv!==''){
           if(k==='sonya_pts'){ // points: max wins
             const m = String(Math.max(parseInt(lv||'0'), parseInt(cv||'0')));
