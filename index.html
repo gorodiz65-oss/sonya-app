@@ -199,7 +199,7 @@
     <button class="go" onclick="gift()">Сделать открытку</button>
     <div id="postcard">
       <canvas id="cv" width="600" height="800"></canvas><br>
-      <a id="dlBtn" href="#" download="otkrytka-sonya.png">⬇ Скачать открытку</a><br>
+      <a id="dlBtn" href="#" onclick="return dlPostcard(event)">⬇ Скачать открытку</a><br>
       <button class="mini" onclick="shareApp('Я в приложении Сони! 💜 Предсказания, игры и подарки каждый день. Присоединяйся!')">📣 Рассказать друзьям</button>
     </div>
   </div>
@@ -208,16 +208,16 @@
 </div>
 <script>
 const store = {
-  get first(){ return localStorage.getItem('sonya_first'); },
-  set first(v){ localStorage.setItem('sonya_first', v); },
-  get pts(){ return parseInt(localStorage.getItem('sonya_pts')||'0'); },
-  set pts(v){ localStorage.setItem('sonya_pts', v); },
-  get lastDay(){ return localStorage.getItem('sonya_last'); },
-  set lastDay(v){ localStorage.setItem('sonya_last', v); },
-  get horoDay(){ return localStorage.getItem('sonya_horo_day'); },
-  set horoDay(v){ localStorage.setItem('sonya_horo_day', v); },
-  get horoTxt(){ return localStorage.getItem('sonya_horo_txt'); },
-  set horoTxt(v){ localStorage.setItem('sonya_horo_txt', v); }
+  get first(){ return cloud.get('sonya_first'); },
+  set first(v){ cloud.set('sonya_first', v); },
+  get pts(){ return parseInt(cloud.get('sonya_pts')||'0'); },
+  set pts(v){ cloud.set('sonya_pts', v); },
+  get lastDay(){ return cloud.get('sonya_last'); },
+  set lastDay(v){ cloud.set('sonya_last', v); },
+  get horoDay(){ return cloud.get('sonya_horo_day'); },
+  set horoDay(v){ cloud.set('sonya_horo_day', v); },
+  get horoTxt(){ return cloud.get('sonya_horo_txt'); },
+  set horoTxt(v){ cloud.set('sonya_horo_txt', v); }
 };
 let vkUser = null;
 try{
@@ -229,6 +229,47 @@ try{
     }).catch(()=>{});
   }
 }catch(e){}
+// Cloud-synced storage: VK Storage (sync across web/mobile) + localStorage fallback
+const cloud = {
+  keys: ['sonya_first','sonya_pts','sonya_last','sonya_horo_day','sonya_horo_txt','sonya_gamer','sonya_rid_done','sonya_rid_day','sonya_wh_day','sonya_wh_n','sonya_mem_day','sonya_pz_day','sonya_ca_day','sonya_ca_n'],
+  cache: {},
+  get(k){
+    if(k in this.cache) return this.cache[k];
+    try{ const v = localStorage.getItem(k); if(v!==null){ this.cache[k]=v; return v; } }catch(e){}
+    return null;
+  },
+  set(k,v){
+    v = String(v);
+    this.cache[k] = v;
+    try{ localStorage.setItem(k,v); }catch(e){}
+    try{ if(window.vkBridge) vkBridge.send('VKWebAppStorageSet',{key:k,value:v}).catch(()=>{}); }catch(e){}
+  },
+  async sync(){
+    if(!window.vkBridge) return;
+    try{
+      const r = await vkBridge.send('VKWebAppStorageGet',{keys:this.keys});
+      const map = {};
+      (r.keys||[]).forEach(({key,value})=>{ map[key]=value; });
+      this.keys.forEach(k=>{
+        const cv = map[k], lv = (k in this.cache) ? this.cache[k] : null;
+        if(cv!==undefined && cv!==null && cv!==''){
+          if(k==='sonya_pts'){ // points: max wins
+            const m = String(Math.max(parseInt(lv||'0'), parseInt(cv||'0')));
+            this.cache[k]=m; try{localStorage.setItem(k,m);}catch(e){}
+            if(parseInt(lv||'0')>parseInt(cv||'0')) this.set(k,m);
+          } else if(k==='sonya_first' && lv){ // seniority: earliest install wins
+            const m = String(Math.min(parseInt(lv), parseInt(cv)));
+            this.cache[k]=m; try{localStorage.setItem(k,m);}catch(e){}
+          } else { this.cache[k]=cv; try{localStorage.setItem(k,cv);}catch(e){} }
+        } else if(lv!==null){ this.set(k,lv); } // upload local-only values to cloud
+      });
+      document.getElementById('points').textContent = store.pts;
+      refreshBadges();
+      if(cloud.get('sonya_gamer')){ document.getElementById('b6').className='badge open'; }
+    }catch(e){}
+  }
+};
+cloud.sync();
 function shareApp(text){
   if(!window.vkBridge){ alert('Кнопка заработает внутри ВК 💜'); return; }
   vkBridge.send('VKWebAppShare',{link:'https://vk.ru/app54819399'}).catch(()=>{
@@ -280,10 +321,10 @@ function refreshBadges(){
   document.getElementById('b3').className = 'badge'+(days>=30?' open':'');
 }
 refreshBadges();
-if(localStorage.getItem('sonya_gamer')){ document.getElementById('b6').className = 'badge open'; }
+if(cloud.get('sonya_gamer')){ document.getElementById('b6').className = 'badge open'; }
 function winGame(){
   document.getElementById('b6').className = 'badge open';
-  localStorage.setItem('sonya_gamer','1');
+  cloud.set('sonya_gamer','1');
 }
 
 const faces = ['🐱','😻','🙀','😹','😽'];
@@ -362,8 +403,8 @@ const RIDS = [
 ];
 const dayNum = Math.floor(Date.now()/86400000);
 let ridList = [0,1,2].map(k => (dayNum*3+k) % RIDS.length);
-let ridDone = JSON.parse(localStorage.getItem('sonya_rid_done')||'[]');
-if(localStorage.getItem('sonya_rid_day') !== today){ ridDone = []; localStorage.setItem('sonya_rid_day', today); localStorage.setItem('sonya_rid_done','[]'); }
+let ridDone = JSON.parse(cloud.get('sonya_rid_done')||'[]');
+if(cloud.get('sonya_rid_day') !== today){ ridDone = []; cloud.set('sonya_rid_day', today); cloud.set('sonya_rid_done','[]'); }
 let ridPos = 0;
 while(ridPos < 3 && ridDone.includes(ridList[ridPos])) ridPos++;
 function ridShow(){
@@ -385,7 +426,7 @@ function ridCheck(){
   const ok = cur.a.some(x => v.includes(x) || (x.includes(v) && v.length > 2));
   if(ok){
     ridDone.push(ridList[ridPos]);
-    localStorage.setItem('sonya_rid_done', JSON.stringify(ridDone));
+    cloud.set('sonya_rid_done', JSON.stringify(ridDone));
     addPts(5); winGame();
     document.getElementById('ridA').value = '';
     ridPos++;
@@ -423,19 +464,19 @@ function wheelDraw(){
   c.beginPath(); c.moveTo(cx-12,2); c.lineTo(cx+12,2); c.lineTo(cx,26); c.closePath(); c.fill();
 }
 function wheelSpinsLeft(){
-  if(localStorage.getItem('sonya_wh_day') !== today){
-    localStorage.setItem('sonya_wh_day', today);
-    localStorage.setItem('sonya_wh_n','3');
+  if(cloud.get('sonya_wh_day') !== today){
+    cloud.set('sonya_wh_day', today);
+    cloud.set('sonya_wh_n','3');
     return 3;
   }
-  return parseInt(localStorage.getItem('sonya_wh_n')||'0');
+  return parseInt(cloud.get('sonya_wh_n')||'0');
 }
 function spin(){
   if(spinning) return;
   const left = wheelSpinsLeft();
   if(left <= 0){ document.getElementById('wheelRes').textContent = 'Прокрутки кончились! Новые — завтра 💜'; return; }
   spinning = true;
-  localStorage.setItem('sonya_wh_n', left-1);
+  cloud.set('sonya_wh_n', left-1);
   const n = SECTORS.length;
   const target = wheelAngle + Math.PI*2*(4+Math.random()*2) + Math.random()*Math.PI*2;
   const start = wheelAngle, t0 = performance.now(), dur = 3800;
@@ -503,10 +544,10 @@ function memFlip(i){
 function memWin(){
   const pts = memMoves <= 10 ? 8 : (memMoves <= 14 ? 5 : 3);
   const box = document.getElementById('memRes');
-  if(localStorage.getItem('sonya_mem_day') === today){
+  if(cloud.get('sonya_mem_day') === today){
     box.textContent = 'Все пары за ' + memMoves + ' ходов! (сегодня уже начисляли 😼)';
   } else {
-    localStorage.setItem('sonya_mem_day', today);
+    cloud.set('sonya_mem_day', today);
     addPts(pts); winGame();
     box.textContent = 'Все пары за ' + memMoves + ' ходов! +' + pts + ' баллов 🎉';
   }
@@ -556,10 +597,10 @@ function pzTap(i){
   pzDraw();
   if(pzOrder.every((v,k)=>v===k)){
     const box = document.getElementById('pzRes');
-    if(localStorage.getItem('sonya_pz_day') === today){
+    if(cloud.get('sonya_pz_day') === today){
       box.textContent = 'Собрано за ' + pzMoves + ' ходов! (сегодня уже начисляли 😼)';
     } else {
-      localStorage.setItem('sonya_pz_day', today);
+      cloud.set('sonya_pz_day', today);
       addPts(5); winGame();
       box.textContent = 'Собрано за ' + pzMoves + ' ходов! +5 баллов 🎉';
     }
@@ -639,13 +680,13 @@ function catchHit(i){
   if(!catchActive || i !== catchPos) return;
   catchPos = -1;
   catchScore++;
-  if(localStorage.getItem('sonya_ca_day') !== today){
-    localStorage.setItem('sonya_ca_day', today);
-    localStorage.setItem('sonya_ca_n','1');
+  if(cloud.get('sonya_ca_day') !== today){
+    cloud.set('sonya_ca_day', today);
+    cloud.set('sonya_ca_n','1');
     addPts(1);
   } else {
-    const n = parseInt(localStorage.getItem('sonya_ca_n')||'0');
-    if(n < 10){ localStorage.setItem('sonya_ca_n', n+1); addPts(1); }
+    const n = parseInt(cloud.get('sonya_ca_n')||'0');
+    if(n < 10){ cloud.set('sonya_ca_n', n+1); addPts(1); }
   }
   const cells = document.getElementById('catch').children;
   for(const c of cells) c.textContent = '';
@@ -690,6 +731,25 @@ ridShow();
 wheelDraw();
 document.getElementById('wheelRes').textContent = 'Осталось прокруток сегодня: ' + wheelSpinsLeft() + '. Джекпот — +20!';
 
+function dlPostcard(e){
+  if(e) e.preventDefault();
+  const url = document.getElementById('cv').toDataURL('image/png');
+  let plat = '';
+  try{ plat = new URLSearchParams(location.search).get('vk_platform')||''; }catch(err){}
+  const isMobile = plat.indexOf('mobile') === 0;
+  if(window.vkBridge && isMobile){
+    vkBridge.send('VKWebAppDownloadFile',{url:url, filename:'otkrytka-sonya.png'}).catch(()=>{
+      vkBridge.send('VKWebAppShowImages',{images:[url]}).catch(()=>{
+        alert('Не получилось скачать автоматически — сделай скриншот открытки 💜');
+      });
+    });
+  } else {
+    const a = document.createElement('a');
+    a.href = url; a.download = 'otkrytka-sonya.png';
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  return false;
+}
 function gift(){
   const name = (document.getElementById('gName').value||'Любимка').slice(0,20);
   const hol = document.getElementById('gHol').value;
@@ -730,5 +790,5 @@ function gift(){
   document.getElementById('postcard').scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a4e1cdd5895be92d',t:'MTc5MjYwMTg3NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
