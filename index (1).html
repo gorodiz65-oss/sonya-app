@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Соня — приложение стаи 💜</title>
+<script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(180deg,#f1ebfc,#ddd1f5); color: #2e2a4a; min-height: 100vh; overflow-x: hidden; }
+  .side { position: fixed; top: 0; bottom: 0; width: 100px; z-index: 0; pointer-events: none; opacity: .8; display: flex; flex-direction: column; justify-content: space-between; padding: 10px 0; }
+  .side-l { left: 0; }
+  .side-r { right: 0; transform: scaleX(-1); }
+  .side svg { width: 100%; height: 28vh; min-height: 140px; }
+  @media (max-width: 700px){ .side { width: 56px; opacity: .45; } }
+  .wrap { max-width: 520px; margin: 0 auto; padding: 18px 16px 60px; position: relative; z-index: 1; }
+  .counter { text-align: center; background: rgba(255,255,255,.92); border: 1px solid #818cf8; border-radius: 16px; padding: 16px; margin-bottom: 14px; box-shadow: 0 4px 26px rgba(99,102,241,.25); }
+  .counter .num { font-size: 34px; font-weight: bold; color: #4f46e5; text-shadow: 0 0 20px rgba(124,58,237,.3); }
+  .counter .lbl { font-size: 13px; color: #6b6590; }
+  .card { background: rgba(255,255,255,.94); border: 1px solid #c7d2fe; border-radius: 16px; padding: 18px; margin-bottom: 14px; box-shadow: 0 4px 20px rgba(99,102,241,.12); }
+  .card h2 { font-size: 18px; margin-bottom: 10px; color: #312e81; }
+  .rank { display: flex; align-items: center; gap: 14px; }
+  .rank .face { font-size: 52px; }
+  .rank .days { font-size: 30px; font-weight: bold; color: #4f46e5; }
+  .rank .rname { font-size: 15px; color: #6d28d9; font-weight: bold; }
+  .rank small { color: #8a83ad; font-size: 12px; }
+  .pet { text-align: center; }
+  .pet button { font-size: 70px; background: none; border: none; cursor: pointer; transition: transform .15s; line-height: 1; }
+  .pet button:active { transform: scale(1.25) rotate(-8deg); }
+  .pet .pts { font-size: 18px; margin-top: 8px; color: #2e2a4a; }
+  .pet .pts b { color: #4f46e5; font-size: 24px; }
+  .pet small { color: #8a83ad; font-size: 12px; }
+  .horo { text-align: center; }
+  .horo button { padding: 13px 26px; border: none; border-radius: 12px; background: linear-gradient(135deg,#818cf8,#6d28d9); color: #fff; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 18px rgba(109,40,217,.4); margin-top: 6px; }
+  .horo .txt { margin-top: 12px; font-size: 16px; line-height: 1.65; color: #2e2a4a; background: #f1ecfd; border-radius: 12px; padding: 14px; min-height: 60px; }
+  .horo small { color: #8a83ad; font-size: 12px; display: block; margin-top: 8px; }
+  .gsub { font-size: 16px; margin: 16px 0 10px; color: #4338ca; }
+  .gsub:first-of-type { margin-top: 4px; }
+  .game { display: none; }
+  .game.on { display: block; }
+  .go2 { width: 100%; margin-top: 10px; padding: 14px; border: none; border-radius: 10px; background: linear-gradient(135deg,#818cf8,#6d28d9); color: #fff; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 18px rgba(109,40,217,.4); }
+  .rps { display: flex; gap: 10px; }
+  .rps button { flex: 1; font-size: 40px; padding: 10px; background: #fff; border: 1px solid #c7d2fe; border-radius: 12px; cursor: pointer; box-shadow: 0 2px 8px rgba(99,102,241,.12); }
+  .rps button:active { transform: scale(1.12); }
+  .res { margin-top: 10px; font-size: 15px; color: #3f3a5e; background: #f1ecfd; border-radius: 10px; padding: 10px 12px; min-height: 44px; line-height: 1.5; }
+  .rebrow { display: flex; gap: 8px; margin-top: 10px; }
+  .rebrow input { flex: 1; border-radius: 10px; border: 1px solid #c7d2fe; background: #fff; color: #2e2a4a; padding: 11px; font-size: 15px; font-family: inherit; min-width: 0; }
+  .rebrow button { padding: 11px 16px; border: none; border-radius: 10px; background: linear-gradient(135deg,#818cf8,#6d28d9); color: #fff; font-weight: bold; cursor: pointer; white-space: nowrap; }
+  .ttt { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-top: 6px; }
+  .ttt button { aspect-ratio: 1; font-size: 44px; background: #fff; border: 1px solid #c7d2fe; border-radius: 12px; cursor: pointer; }
+  .mini { margin-top: 10px; width: 100%; padding: 11px; border: 1px solid #7c3aed; background: transparent; color: #5b21b6; border-radius: 10px; font-size: 14px; cursor: pointer; font-weight: bold; }
+  .medal { display: flex; gap: 12px; align-items: flex-start; background: #f1ecfd; border-radius: 12px; padding: 12px; }
+  .medal .m { font-size: 40px; }
+  .medal p { font-size: 13px; color: #4a4470; line-height: 1.55; }
+  .medal b { color: #2e2a4a; }
+  .badges { display: flex; gap: 10px; flex-wrap: wrap; }
+  .badge { flex: 1 1 28%; min-width: 90px; text-align: center; background: #f1ecfd; border-radius: 12px; padding: 12px 6px; font-size: 12px; color: #8a83ad; }
+  .badge .e { font-size: 34px; display: block; margin-bottom: 6px; filter: grayscale(1); opacity: .45; }
+  .badge.open .e { filter: none; opacity: 1; }
+  .badge.open { border: 1px solid #7c3aed; color: #2e2a4a; background: #fff; }
+  .gift label { font-size: 13px; color: #6d28d9; display: block; margin: 10px 0 6px; font-weight: bold; }
+  .gift input, .gift select { width: 100%; border-radius: 10px; border: 1px solid #c7d2fe; background: #fff; color: #2e2a4a; padding: 11px; font-size: 15px; font-family: inherit; }
+  .gift button.go { width: 100%; margin-top: 12px; padding: 14px; border: none; border-radius: 10px; background: linear-gradient(135deg,#818cf8,#6d28d9); color: #fff; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 18px rgba(109,40,217,.4); }
+  #postcard { display: none; margin-top: 14px; text-align: center; }
+  #postcard canvas { width: 100%; border-radius: 12px; border: 1px solid #7c3aed; }
+  #dlBtn { display: inline-block; margin-top: 10px; color: #5b21b6; font-size: 14px; font-weight: bold; }
+  footer { text-align: center; font-size: 12px; color: #8a83ad; margin-top: 20px; line-height: 1.7; }
+  .purr { animation: purr .4s; display: inline-block; }
+  @keyframes purr { 0%{transform:scale(1)} 50%{transform:scale(1.3) rotate(6deg)} 100%{transform:scale(1)} }
+  .tbtn { flex: 1; padding: 8px 0; background: #fff; border: 1px solid #c7d2fe; color: #5b5b9e; border-radius: 8px; font-size: 12px; cursor: pointer; font-weight: bold; }
+</style>
+</head>
+<body>
+<div class="side side-l">
+  <svg viewBox="0 0 90 200"><ellipse cx="38" cy="55" rx="24" ry="29" fill="#7cc4ff" stroke="#e8f5ff" stroke-width="1.5"/><ellipse cx="29" cy="47" rx="5" ry="10" fill="#fff" opacity=".6" transform="rotate(-20 29 47)"/><path d="M38 84 q-8 14 3 22 q8 6 0 16 q-6 8 2 16" stroke="#7cc4ff" stroke-width="1.5" fill="none"/><polygon points="66,140 69,149 79,149 71,155 74,164 66,159 58,164 61,155 53,149 63,149" fill="#c084fc" stroke="#e9d5ff" stroke-width="1"/></svg>
+  <svg viewBox="0 0 90 200"><path d="M34 20 C34 20 12 20 12 38 C12 52 34 70 34 70 C34 70 56 52 56 38 C56 20 34 20 34 20 Z" fill="#c084fc" stroke="#e9d5ff" stroke-width="1.5"/><ellipse cx="26" cy="36" rx="4" ry="7" fill="#fff" opacity=".55" transform="rotate(-20 26 36)"/><path d="M34 70 q8 12 -3 20 q-8 6 0 16" stroke="#c084fc" stroke-width="1.5" fill="none"/><ellipse cx="66" cy="150" rx="15" ry="18" fill="#8b5cf6" stroke="#e9d5ff" stroke-width="1.2"/><path d="M66 168 q-5 8 2 14" stroke="#8b5cf6" stroke-width="1.2" fill="none"/></svg>
+  <svg viewBox="0 0 90 200"><polygon points="36,30 41,46 58,46 44,56 49,72 36,63 23,72 28,56 14,46 31,46" fill="#f0a6e8" stroke="#ffe9fb" stroke-width="1.2"/><path d="M36 72 q-8 12 3 20 q8 6 0 16" stroke="#f0a6e8" stroke-width="1.5" fill="none"/><ellipse cx="64" cy="150" rx="17" ry="20" fill="#7cc4ff" stroke="#e8f5ff" stroke-width="1.2"/><ellipse cx="58" cy="144" rx="3" ry="6" fill="#fff" opacity=".6" transform="rotate(-20 58 144)"/><path d="M64 170 q5 8 -2 14" stroke="#7cc4ff" stroke-width="1.2" fill="none"/></svg>
+</div>
+<div class="side side-r">
+  <svg viewBox="0 0 90 200"><ellipse cx="38" cy="55" rx="24" ry="29" fill="#c084fc" stroke="#e9d5ff" stroke-width="1.5"/><ellipse cx="29" cy="47" rx="5" ry="10" fill="#fff" opacity=".6" transform="rotate(-20 29 47)"/><path d="M38 84 q-8 14 3 22 q8 6 0 16 q-6 8 2 16" stroke="#c084fc" stroke-width="1.5" fill="none"/><polygon points="66,140 69,149 79,149 71,155 74,164 66,159 58,164 61,155 53,149 63,149" fill="#7cc4ff" stroke="#e8f5ff" stroke-width="1"/></svg>
+  <svg viewBox="0 0 90 200"><path d="M34 20 C34 20 12 20 12 38 C12 52 34 70 34 70 C34 70 56 52 56 38 C56 20 34 20 34 20 Z" fill="#f0a6e8" stroke="#ffe9fb" stroke-width="1.5"/><path d="M34 70 q8 12 -3 20 q-8 6 0 16" stroke="#f0a6e8" stroke-width="1.5" fill="none"/><polygon points="64,140 69,152 82,152 71,160 75,173 64,165 53,173 57,160 46,152 59,152" fill="#8b5cf6" stroke="#e9d5ff" stroke-width="1.2"/><path d="M64 173 q-5 8 2 12" stroke="#8b5cf6" stroke-width="1.2" fill="none"/></svg>
+  <svg viewBox="0 0 90 200"><ellipse cx="38" cy="60" rx="24" ry="29" fill="#8b5cf6" stroke="#e9d5ff" stroke-width="1.5"/><ellipse cx="29" cy="52" rx="5" ry="10" fill="#fff" opacity=".55" transform="rotate(-20 29 52)"/><path d="M38 89 q-8 14 3 22 q8 6 0 16" stroke="#8b5cf6" stroke-width="1.5" fill="none"/><path d="M66 145 C66 145 52 145 52 156 C52 165 66 176 66 176 C66 176 80 165 80 156 C80 145 66 145 66 145 Z" fill="#7cc4ff" stroke="#e8f5ff" stroke-width="1.2"/></svg>
+</div>
+<div class="wrap">
+  <div id="greet" style="text-align:center;font-weight:bold;color:#6d28d9;margin-bottom:10px;font-size:15px"></div>
+  <div class="card">
+    <h2>📅 Дней с Соней</h2>
+    <div class="rank">
+      <div class="face" id="rankFace">🐣</div>
+      <div>
+        <div class="days" id="daysNum">1</div>
+        <div class="rname" id="rankName">Новичок</div>
+        <small id="rankNext">До «Друга» — 2 дня. Заходи каждый день!</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="card pet">
+    <h2 style="text-align:left">🐾 Погладь Соню</h2>
+    <button id="petBtn" onclick="pet()">🐱</button>
+    <div class="pts">Мои баллы: <b id="points">0</b> 💜</div>
+    <small>+1 балл за поглаживание · +5 за каждый новый день</small>
+  </div>
+
+  <div class="card horo">
+    <h2>🔮 Предсказание Сони на сегодня</h2>
+    <div class="txt" id="horoTxt">Нажми на кнопку — Соня заглянет в будущее... 🐱</div>
+    <button id="horoBtn" onclick="horo()">Узнать судьбу</button>
+    <button class="mini" id="horoShare" onclick="shareHoro()" style="display:none">📣 Поделиться предсказанием</button>
+    <small>Одно предсказание в день · завтра будет новое</small>
+  </div>
+
+  <div class="card">
+    <h2>🎮 Игра дня</h2>
+    <div class="res" id="gameName" style="text-align:center;font-weight:bold;color:#4338ca"></div>
+    <div id="game-rps" class="game">
+      <h3 class="gsub">✊✌️✋ Камень-ножницы-бумага</h3>
+      <div class="rps"><button onclick="rps('✊')">✊</button><button onclick="rps('✌️')">✌️</button><button onclick="rps('✋')">✋</button></div>
+      <div class="res" id="rpsRes">Выбирай — Соня уже готова! Победа +2, ничья +1.</div>
+    </div>
+    <div id="game-ttt" class="game">
+      <h3 class="gsub">❌⭕ Крестики-нолики с Соней</h3>
+      <div class="ttt" id="ttt"></div>
+      <div class="res" id="tttRes">Ты — ❌, ходи первой! Победа +5, ничья +2.</div>
+      <button class="mini" onclick="tttReset()">Играть снова</button>
+    </div>
+    <div id="game-rid" class="game">
+      <h3 class="gsub">🧩 Три загадки от Сони <span id="ridScore" style="font-size:13px;color:#8a83ad"></span></h3>
+      <div class="res" id="ridQ"></div>
+      <div class="rebrow"><input id="ridA" placeholder="Твой ответ..."><button onclick="ridCheck()">Проверить</button></div>
+      <div class="res" id="ridRes">Каждая отгадка +5 баллов.</div>
+    </div>
+    <div id="game-wheel" class="game">
+      <h3 class="gsub">🎡 Колесо фортуны</h3>
+      <div style="text-align:center"><canvas id="wheel" width="300" height="300" style="max-width:100%"></canvas></div>
+      <button class="go2" onclick="spin()">Крутить!</button>
+      <div class="res" id="wheelRes">3 прокрутки в день. Джекпот — +20!</div>
+    </div>
+    <div id="game-mem" class="game">
+      <h3 class="gsub">🃏 Мемори-пары</h3>
+      <div id="mem" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px"></div>
+      <div class="res" id="memRes">Найди все 6 пар! Чем меньше ходов — тем больше баллов.</div>
+      <button class="mini" onclick="memReset()">Начать заново</button>
+    </div>
+    <div id="game-puzzle" class="game">
+      <h3 class="gsub">🧩 Пазл Сони</h3>
+      <div class="res">Собери картинку: жми на две плитки — они поменяются местами. Сборка +5.</div>
+      <div id="pz" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px"></div>
+      <div class="res" id="pzRes">Ходов: 0</div>
+      <button class="mini" onclick="pzReset()">Перемешать заново</button>
+    </div>
+    <div id="game-catch" class="game">
+      <h3 class="gsub">🐾 Поймай Соню</h3>
+      <div class="res">Соня выскакивает на 20 секунд! Жми на неё: +1 балл за поимку (первые 10 — с баллами).</div>
+      <div id="catch" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px"></div>
+      <div class="res" id="catchRes">Жми «Старт» и лови!</div>
+      <button class="mini" onclick="catchStart()">Старт</button>
+    </div>
+    <div style="font-size:12px;color:#8a83ad;margin-top:10px;text-align:center" id="gameNext"></div>
+  </div>
+
+  <div class="card">
+    <h2>🏅 Лучший коммент недели</h2>
+    <div class="medal">
+      <div class="m">🥇</div>
+      <p>Выбираем в группе «Кошка Соня» по лайкам!<br>Комментируй посты — приз (грамота + 50 баллов) может стать твоим 💜</p>
+    </div>
+    <p style="text-align:center"><a href="https://vk.ru/catsonya_off" target="_blank">💜 Перейти в группу</a></p>
+  </div>
+
+  <div class="card">
+    <h2>🎖 Мои бейджи</h2>
+    <div class="badges">
+      <div class="badge open" id="b0"><span class="e">💜</span>Своя в стае</div>
+      <div class="badge" id="b1"><span class="e">🐾</span>Гладильщик (10 баллов)</div>
+      <div class="badge" id="b2"><span class="e">🏅</span>Старожил (7 дней)</div>
+      <div class="badge" id="b3"><span class="e">👑</span>Легенда (30 дней)</div>
+      <div class="badge" id="b4"><span class="e">🔮</span>Избранная судьбой</div>
+      <div class="badge" id="b5"><span class="e">🎁</span>Даритель открыток</div>
+      <div class="badge" id="b6"><span class="e">🎮</span>Игрок (выиграй игру)</div>
+    </div>
+  </div>
+
+  <div class="card gift">
+    <h2>🎁 Подарок от Сони</h2>
+    <label>Кому дарим?</label>
+    <input id="gName" placeholder="Имя счастливчика" value="Любимке">
+    <label>По какому поводу?</label>
+    <select id="gHol">
+      <option>День рождения 🎂</option>
+      <option>Новый год 🎄</option>
+      <option>8 Марта 🌸</option>
+      <option>Просто так 💜</option>
+    </select>
+    <button class="go" onclick="gift()">Сделать открытку</button>
+    <div id="postcard">
+      <canvas id="cv" width="600" height="800"></canvas><br>
+      <a id="dlBtn" href="#" onclick="return dlPostcard(event)">⬇ Скачать открытку</a><br>
+      <button class="mini" onclick="shareApp('Я в приложении Сони! 💜 Предсказания, игры и подарки каждый день. Присоединяйся!')">📣 Рассказать друзьям</button>
+    </div>
+  </div>
+
+  <footer>Приложение Сони · сделано с 💜<br>Заходи каждый день — завтра новая игра!</footer>
+</div>
+<script>
+const store = {
+  get first(){ return cloud.get('sonya_first'); },
+  set first(v){ cloud.set('sonya_first', v); },
+  get pts(){ return parseInt(cloud.get('sonya_pts')||'0'); },
+  set pts(v){ cloud.set('sonya_pts', v); },
+  get lastDay(){ return cloud.get('sonya_last'); },
+  set lastDay(v){ cloud.set('sonya_last', v); },
+  get horoDay(){ return cloud.get('sonya_horo_day'); },
+  set horoDay(v){ cloud.set('sonya_horo_day', v); },
+  get horoTxt(){ return cloud.get('sonya_horo_txt'); },
+  set horoTxt(v){ cloud.set('sonya_horo_txt', v); }
+};
+let vkUser = null;
+try{
+  if(window.vkBridge){
+    vkBridge.send('VKWebAppInit');
+    vkBridge.send('VKWebAppGetUserInfo').then(u=>{
+      vkUser = u;
+      document.getElementById('greet').textContent = 'Привет, ' + u.first_name + '! 💜';
+    }).catch(()=>{});
+  }
+}catch(e){}
+// Cloud-synced storage: VK Storage (sync across web/mobile) + localStorage fallback
+const cloud = {
+  keys: ['sonya_first','sonya_pts','sonya_last','sonya_horo_day','sonya_horo_txt','sonya_gamer','sonya_rid_done','sonya_rid_day','sonya_wh_day','sonya_wh_n','sonya_mem_day','sonya_pz_day','sonya_ca_day','sonya_ca_n'],
+  cache: {},
+  get(k){
+    if(k in this.cache) return this.cache[k];
+    try{ const v = localStorage.getItem(k); if(v!==null){ this.cache[k]=v; return v; } }catch(e){}
+    return null;
+  },
+  set(k,v){
+    v = String(v);
+    this.cache[k] = v;
+    try{ localStorage.setItem(k,v); }catch(e){}
+    try{ if(window.vkBridge) vkBridge.send('VKWebAppStorageSet',{key:k,value:v}).catch(()=>{}); }catch(e){}
+  },
+  async sync(){
+    if(!window.vkBridge) return;
+    try{
+      const r = await vkBridge.send('VKWebAppStorageGet',{keys:this.keys});
+      const map = {};
+      (r.keys||[]).forEach(({key,value})=>{ map[key]=value; });
+      this.keys.forEach(k=>{
+        const cv = map[k], lv = (k in this.cache) ? this.cache[k] : null;
+        if(cv!==undefined && cv!==null && cv!==''){
+          if(k==='sonya_pts'){ // points: max wins
+            const m = String(Math.max(parseInt(lv||'0'), parseInt(cv||'0')));
+            this.cache[k]=m; try{localStorage.setItem(k,m);}catch(e){}
+            if(parseInt(lv||'0')>parseInt(cv||'0')) this.set(k,m);
+          } else if(k==='sonya_first' && lv){ // seniority: earliest install wins
+            const m = String(Math.min(parseInt(lv), parseInt(cv)));
+            this.cache[k]=m; try{localStorage.setItem(k,m);}catch(e){}
+          } else { this.cache[k]=cv; try{localStorage.setItem(k,cv);}catch(e){} }
+        } else if(lv!==null){ this.set(k,lv); } // upload local-only values to cloud
+      });
+      document.getElementById('points').textContent = store.pts;
+      refreshBadges();
+      if(cloud.get('sonya_gamer')){ document.getElementById('b6').className='badge open'; }
+    }catch(e){}
+  }
+};
+cloud.sync();
+function shareApp(text){
+  if(!window.vkBridge){ alert('Кнопка заработает внутри ВК 💜'); return; }
+  vkBridge.send('VKWebAppShare',{link:'https://vk.ru/app54819399'}).catch(()=>{
+    vkBridge.send('VKWebAppShowWallPostBox',{message:text, attachments:'https://vk.ru/app54819399'}).catch(()=>{
+      alert('Поделиться получится после модерации приложения 💜');
+    });
+  });
+}
+function shareHoro(){
+  const t = store.horoTxt || '';
+  shareApp('Моё предсказание от Сони на сегодня: ' + t + ' А что скажет тебе? 💜');
+}
+function addPts(n){
+  store.pts = store.pts + n;
+  document.getElementById('points').textContent = store.pts;
+  refreshBadges();
+}
+const today = new Date().toDateString();
+if(!store.first){ store.first = Date.now(); }
+let first = parseInt(store.first);
+let days = Math.max(1, Math.floor((Date.now()-first)/86400000)+1);
+if(store.lastDay !== today){ store.pts = store.pts + 5; store.lastDay = today; }
+document.getElementById('daysNum').textContent = days;
+document.getElementById('points').textContent = store.pts;
+
+const ranks = [
+  {d:0, n:'Новичок', f:'🐣', next:'До «Друга» — {x} дн.'},
+  {d:3, n:'Друг стаи', f:'🐾', next:'До «Старожила» — {x} дн.'},
+  {d:7, n:'Старожил', f:'🏅', next:'До «Легенды» — {x} дн.'},
+  {d:30, n:'Легенда Сони', f:'👑', next:'Ты — легенда! Дальше только мурчание 💜'}
+];
+let ri = 0;
+ranks.forEach((r,i)=>{ if(days>=r.d) ri=i; });
+document.getElementById('rankName').textContent = ranks[ri].n;
+document.getElementById('rankFace').textContent = ranks[ri].f;
+let nxt = ranks[ri].next;
+if(ri<3){ nxt = nxt.replace('{x}', ranks[ri+1].d - days); }
+document.getElementById('rankNext').textContent = nxt;
+
+function refreshBadges(){
+  const p = store.pts;
+  document.getElementById('b1').className = 'badge'+(p>=10?' open':'');
+  document.getElementById('b2').className = 'badge'+(days>=7?' open':'');
+  document.getElementById('b3').className = 'badge'+(days>=30?' open':'');
+}
+refreshBadges();
+if(cloud.get('sonya_gamer')){ document.getElementById('b6').className = 'badge open'; }
+function winGame(){
+  document.getElementById('b6').className = 'badge open';
+  cloud.set('sonya_gamer','1');
+}
+
+const faces = ['🐱','😻','🙀','😹','😽'];
+function pet(){
+  addPts(1);
+  const b = document.getElementById('petBtn');
+  b.textContent = faces[Math.floor(Math.random()*faces.length)];
+  b.classList.remove('purr'); void b.offsetWidth; b.classList.add('purr');
+}
+
+const PREDICTS = [
+  '🔮 Сегодня кот внутри тебя знает ответы на все вопросы. Слушай мурчание — не ошибёшься.',
+  '🐾 К вечеру случится маленькое чудо. Возможно, оно будет пушистым.',
+  '💜 Кто-то думает о тебе прямо сейчас. И это точно не кот. Хотя... может, и кот.',
+  '🌙 Сегодня идеальный день, чтобы начать. Даже коты сначала долго смотрят, а потом прыгают.',
+  '☀️ Удача сегодня на твоей стороне. Проверено Соней: миска была полна с утра.',
+  '🎁 Жди приятную неожиданность. Совет от Сони: мурчи — и она придёт быстрее.',
+  '⭐ Звёзды говорят: отдохни. Соня подтверждает: поспи. Потом поешь. Потом снова поспи.',
+  '🚀 Смелый шаг сегодня обернётся победой. Коты не сомневаются — и ты не сомневайся.',
+  '💰 К деньгам! Соня видела: кто-то уронит вкусняшку, а подберёшь её ты.',
+  '❤️ День любви и обнимашек. Обними кота. Нет кота? Обними подушку. Работает.',
+  '🎨 Твоя креативность сегодня зашкаливает. Даже Соня одобрительно мяукнула.',
+  '🍀 Счастливое число дня — 7. Счастливое действие — погладить кота. Совпадение? Не думаем.',
+  '📦 Сегодня придёт хорошая новость. Возможно, в коробке. Коты любят коробки.',
+  '🌈 После обеда настроение взлетит. Причина найдётся сама — так всегда бывает.',
+  '👑 Сегодня ты — главная кошечка дня. Веди себя соответственно: грациозно и независимо.'
+];
+function horo(){
+  const box = document.getElementById('horoTxt');
+  if(store.horoDay === today && store.horoTxt){
+    box.textContent = store.horoTxt;
+    return;
+  }
+  box.textContent = 'Соня смотрит в звёзды... ✨';
+  document.getElementById('horoBtn').disabled = true;
+  setTimeout(()=>{
+    const t = PREDICTS[Math.floor(Math.random()*PREDICTS.length)];
+    box.textContent = t;
+    store.horoDay = today; store.horoTxt = t;
+    document.getElementById('horoShare').style.display = 'block';
+    addPts(3);
+    document.getElementById('b4').className = 'badge open';
+    const hb = document.getElementById('horoBtn');
+    hb.textContent = 'Судьба на сегодня известна ✨';
+    hb.disabled = true;
+  }, 900);
+}
+if(store.horoDay === today && store.horoTxt){
+  document.getElementById('horoTxt').textContent = store.horoTxt;
+  document.getElementById('horoShare').style.display = 'block';
+  const hb0 = document.getElementById('horoBtn');
+  hb0.textContent = 'Судьба на сегодня известна ✨';
+  hb0.disabled = true;
+}
+
+function rps(p){
+  const v = ['✊','✌️','✋'];
+  const s = v[Math.floor(Math.random()*3)];
+  let t = 'Соня: ' + s + ' — ';
+  if(p === s){ t += 'ничья! +1 балл 🙂'; addPts(1); }
+  else if((p==='✊'&&s==='✌️')||(p==='✌️'&&s==='✋')||(p==='✋'&&s==='✊')){ t += 'ты победила! +2 балла 🎉'; addPts(2); winGame(); }
+  else { t += 'Соня победила 😼 Попробуй ещё!'; }
+  document.getElementById('rpsRes').textContent = t;
+}
+
+const RIDS = [
+  {q:'Мохнатенькая, усатенькая, молочко пьёт, песенки поёт. Кто?', a:['кошка','кот','котенок','котёнок']},
+  {q:'Не лает, не кусает, а в дом не пускает.', a:['замок']},
+  {q:'Висит груша — нельзя скушать.', a:['лампочка','лампа']},
+  {q:'Зимой и летом одним цветом.', a:['елка','ёлка','ель']},
+  {q:'Сто одёжек — и все без застёжек.', a:['капуста']},
+  {q:'Мурчит, умывается, на коленях греется. Кто?', a:['кошка','кот','котенок','котёнок']},
+  {q:'Без окон, без дверей — полна горница людей.', a:['огурец']},
+  {q:'Два конца, два кольца, посередине гвоздик.', a:['ножницы']},
+  {q:'Сидит дед, во сто шуб одет. Кто его раздевает — тот слёзы проливает.', a:['лук']}
+];
+const dayNum = Math.floor(Date.now()/86400000);
+let ridList = [0,1,2].map(k => (dayNum*3+k) % RIDS.length);
+let ridDone = JSON.parse(cloud.get('sonya_rid_done')||'[]');
+if(cloud.get('sonya_rid_day') !== today){ ridDone = []; cloud.set('sonya_rid_day', today); cloud.set('sonya_rid_done','[]'); }
+let ridPos = 0;
+while(ridPos < 3 && ridDone.includes(ridList[ridPos])) ridPos++;
+function ridShow(){
+  const done = ridList.filter(i => ridDone.includes(i)).length;
+  document.getElementById('ridScore').textContent = '(' + done + '/3 сегодня)';
+  if(ridPos >= 3){
+    document.getElementById('ridQ').textContent = '🎉 Все три разгаданы! Ты — умница. Завтра — новая игра.';
+    document.getElementById('ridRes').textContent = 'Возвращайся завтра 💜';
+    return;
+  }
+  document.getElementById('ridQ').textContent = '🧩 ' + RIDS[ridList[ridPos]].q;
+}
+function ridCheck(){
+  if(ridPos >= 3) return;
+  const v = (document.getElementById('ridA').value||'').trim().toLowerCase();
+  const res = document.getElementById('ridRes');
+  if(!v){ res.textContent = 'Напиши ответ 🙂'; return; }
+  const cur = RIDS[ridList[ridPos]];
+  const ok = cur.a.some(x => v.includes(x) || (x.includes(v) && v.length > 2));
+  if(ok){
+    ridDone.push(ridList[ridPos]);
+    cloud.set('sonya_rid_done', JSON.stringify(ridDone));
+    addPts(5); winGame();
+    document.getElementById('ridA').value = '';
+    ridPos++;
+    while(ridPos < 3 && ridDone.includes(ridList[ridPos])) ridPos++;
+    res.textContent = 'Правильно! +5 баллов 🎉';
+    setTimeout(ridShow, 1000);
+  } else {
+    res.textContent = 'Мимо! Подумай ещё 💜';
+  }
+}
+
+const SECTORS = [
+  {t:'+1', c:'#7c3aed'}, {t:'ПУСТО', c:'#c9bdef'}, {t:'+5', c:'#a855f7'}, {t:'+2', c:'#6d28d9'},
+  {t:'+10', c:'#818cf8'}, {t:'ПУСТО', c:'#c9bdef'}, {t:'+3', c:'#8b5cf6'}, {t:'+20', c:'#e9d5ff'}
+];
+let wheelAngle = 0, spinning = false;
+function wheelDraw(){
+  const cv = document.getElementById('wheel'), c = cv.getContext('2d');
+  const R = 148, cx = 150, cy = 150, n = SECTORS.length;
+  c.clearRect(0,0,300,300);
+  SECTORS.forEach((s,i)=>{
+    const a0 = wheelAngle + i*2*Math.PI/n, a1 = a0 + 2*Math.PI/n;
+    c.beginPath(); c.moveTo(cx,cy); c.arc(cx,cy,R,a0,a1); c.closePath();
+    c.fillStyle = s.c; c.fill();
+    c.strokeStyle = '#fff'; c.lineWidth = 2; c.stroke();
+    c.save(); c.translate(cx,cy); c.rotate(a0 + Math.PI/n);
+    c.textAlign = 'right';
+    c.fillStyle = (s.t === '+20' || s.t === 'ПУСТО') ? '#4c1d95' : '#fff';
+    c.font = 'bold 17px sans-serif';
+    c.fillText(s.t, R-12, 6); c.restore();
+  });
+  c.beginPath(); c.arc(cx,cy,22,0,7); c.fillStyle = '#4f46e5'; c.fill();
+  c.font = '20px serif'; c.textAlign = 'center'; c.fillStyle = '#fff'; c.fillText('💜', cx, cy+7);
+  c.fillStyle = '#4f46e5';
+  c.beginPath(); c.moveTo(cx-12,2); c.lineTo(cx+12,2); c.lineTo(cx,26); c.closePath(); c.fill();
+}
+function wheelSpinsLeft(){
+  if(cloud.get('sonya_wh_day') !== today){
+    cloud.set('sonya_wh_day', today);
+    cloud.set('sonya_wh_n','3');
+    return 3;
+  }
+  return parseInt(cloud.get('sonya_wh_n')||'0');
+}
+function spin(){
+  if(spinning) return;
+  const left = wheelSpinsLeft();
+  if(left <= 0){ document.getElementById('wheelRes').textContent = 'Прокрутки кончились! Новые — завтра 💜'; return; }
+  spinning = true;
+  cloud.set('sonya_wh_n', left-1);
+  const n = SECTORS.length;
+  const target = wheelAngle + Math.PI*2*(4+Math.random()*2) + Math.random()*Math.PI*2;
+  const start = wheelAngle, t0 = performance.now(), dur = 3800;
+  document.getElementById('wheelRes').textContent = 'Крутится... 🌀';
+  function frame(t){
+    const k = Math.min(1,(t-t0)/dur);
+    const e = 1-Math.pow(1-k,3);
+    wheelAngle = start + (target-start)*e;
+    wheelDraw();
+    if(k < 1){ requestAnimationFrame(frame); }
+    else{
+      spinning = false;
+      const rel = ((3*Math.PI/2 - wheelAngle) % (Math.PI*2) + Math.PI*2) % (Math.PI*2);
+      const idx = Math.floor(rel / (Math.PI*2/n)) % n;
+      const prize = SECTORS[idx].t;
+      const box = document.getElementById('wheelRes');
+      if(prize === 'ПУСТО'){ box.textContent = 'Пусто 😼 Осталось прокруток: ' + (left-1); }
+      else{
+        const pts = parseInt(prize);
+        addPts(pts);
+        if(prize === '+20'){ winGame(); box.textContent = '🎉 ДЖЕКПОТ! +20 баллов! Осталось прокруток: ' + (left-1); }
+        else box.textContent = 'Выигрыш ' + prize + ' баллов! Осталось прокруток: ' + (left-1);
+      }
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+let memDeck = [], memOpen = [], memFound = 0, memMoves = 0, memLock = false;
+function memReset(){
+  const faces = ['🐱','😻','🙀','😹','😽','🐾'];
+  memDeck = [...faces,...faces].sort(()=>Math.random()-.5);
+  memOpen = []; memFound = 0; memMoves = 0; memLock = false;
+  const d = document.getElementById('mem');
+  d.innerHTML = '';
+  memDeck.forEach((f,i)=>{
+    const b = document.createElement('button');
+    b.textContent = '💜';
+    b.style.cssText = 'aspect-ratio:1;font-size:34px;background:#fff;border:1px solid #c7d2fe;border-radius:12px;cursor:pointer';
+    b.onclick = ()=>memFlip(i);
+    d.appendChild(b);
+  });
+  document.getElementById('memRes').textContent = 'Найди все 6 пар! Чем меньше ходов — тем больше баллов.';
+}
+function memFlip(i){
+  if(memLock) return;
+  const cells = document.getElementById('mem').children;
+  const b = cells[i];
+  if(b.dataset.open === '1' || memOpen.includes(i)) return;
+  b.textContent = memDeck[i];
+  memOpen.push(i);
+  if(memOpen.length === 2){
+    memMoves++;
+    const a = memOpen[0], c = memOpen[1];
+    if(memDeck[a] === memDeck[c]){
+      cells[a].dataset.open = '1'; cells[c].dataset.open = '1';
+      memOpen = []; memFound++;
+      if(memFound === 6) memWin();
+    } else {
+      memLock = true;
+      setTimeout(()=>{ cells[a].textContent = '💜'; cells[c].textContent = '💜'; memOpen = []; memLock = false; }, 700);
+    }
+  }
+}
+function memWin(){
+  const pts = memMoves <= 10 ? 8 : (memMoves <= 14 ? 5 : 3);
+  const box = document.getElementById('memRes');
+  if(cloud.get('sonya_mem_day') === today){
+    box.textContent = 'Все пары за ' + memMoves + ' ходов! (сегодня уже начисляли 😼)';
+  } else {
+    cloud.set('sonya_mem_day', today);
+    addPts(pts); winGame();
+    box.textContent = 'Все пары за ' + memMoves + ' ходов! +' + pts + ' баллов 🎉';
+  }
+}
+memReset();
+
+let pzOrder = [], pzSel = -1, pzMoves = 0, pzImg = '';
+function pzMakeImg(){
+  const cv = document.createElement('canvas');
+  cv.width = 300; cv.height = 300;
+  const c = cv.getContext('2d');
+  const g = c.createLinearGradient(0,0,300,300);
+  g.addColorStop(0,'#c4b5fd'); g.addColorStop(1,'#7c3aed');
+  c.fillStyle = g; c.fillRect(0,0,300,300);
+  c.fillStyle = 'rgba(255,255,255,.9)';
+  const stars = [[30,40],[90,22],[160,45],[230,25],[270,70],[45,120],[255,130],[70,200],[240,210],[120,260],[200,265],[35,260]];
+  stars.forEach(s=>{ c.beginPath(); c.arc(s[0],s[1],5,0,7); c.fill(); });
+  c.font = '170px serif'; c.textAlign = 'center';
+  c.fillText('🐱',150,210);
+  c.fillStyle = '#fff'; c.font = 'bold 34px sans-serif';
+  c.fillText('С О Н Я',150,275);
+  pzImg = cv.toDataURL();
+}
+function pzReset(){
+  pzOrder = [0,1,2,3,4,5,6,7,8].sort(()=>Math.random()-.5);
+  if(pzOrder.every((v,i)=>v===i)){ const t = pzOrder[0]; pzOrder[0] = pzOrder[1]; pzOrder[1] = t; }
+  pzSel = -1; pzMoves = 0;
+  pzDraw();
+  document.getElementById('pzRes').textContent = 'Ходов: 0';
+}
+function pzDraw(){
+  const d = document.getElementById('pz');
+  d.innerHTML = '';
+  pzOrder.forEach((tile,i)=>{
+    const col = tile % 3, row = Math.floor(tile/3);
+    const b = document.createElement('button');
+    b.style.cssText = 'aspect-ratio:1;border-radius:10px;cursor:pointer;border:' + (i === pzSel ? '3px solid #4f46e5' : '2px solid #c7d2fe') + ';background-image:url(' + pzImg + ');background-size:300% 300%;background-position:' + (col*50) + '% ' + (row*50) + '%;';
+    b.onclick = ()=>pzTap(i);
+    d.appendChild(b);
+  });
+}
+function pzTap(i){
+  if(pzSel === -1){ pzSel = i; pzDraw(); return; }
+  if(pzSel === i){ pzSel = -1; pzDraw(); return; }
+  const t = pzOrder[pzSel]; pzOrder[pzSel] = pzOrder[i]; pzOrder[i] = t;
+  pzSel = -1; pzMoves++;
+  pzDraw();
+  if(pzOrder.every((v,k)=>v===k)){
+    const box = document.getElementById('pzRes');
+    if(cloud.get('sonya_pz_day') === today){
+      box.textContent = 'Собрано за ' + pzMoves + ' ходов! (сегодня уже начисляли 😼)';
+    } else {
+      cloud.set('sonya_pz_day', today);
+      addPts(5); winGame();
+      box.textContent = 'Собрано за ' + pzMoves + ' ходов! +5 баллов 🎉';
+    }
+  } else {
+    document.getElementById('pzRes').textContent = 'Ходов: ' + pzMoves;
+  }
+}
+pzMakeImg();
+pzReset();
+
+let tttB = Array(9).fill(''), tttOver = false;
+function tttDraw(){
+  const d = document.getElementById('ttt');
+  d.innerHTML = '';
+  tttB.forEach((v,i)=>{
+    const b = document.createElement('button');
+    b.textContent = v;
+    b.onclick = ()=>tttPlay(i);
+    d.appendChild(b);
+  });
+}
+function tttWin(b){
+  const L = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  for(const l of L){
+    if(b[l[0]] && b[l[0]]===b[l[1]] && b[l[1]]===b[l[2]]) return b[l[0]];
+  }
+  return b.every(x=>x) ? 'D' : null;
+}
+function tttPlay(i){
+  if(tttOver || tttB[i]) return;
+  tttB[i] = '❌';
+  tttDraw();
+  let w = tttWin(tttB);
+  if(w){ tttEnd(w); return; }
+  document.getElementById('tttRes').textContent = 'Соня думает... 😼';
+  setTimeout(()=>{
+    tttSonya();
+    tttDraw();
+    w = tttWin(tttB);
+    if(w) tttEnd(w);
+    else document.getElementById('tttRes').textContent = 'Твой ход!';
+  }, 450);
+}
+function tttSonya(){
+  const emp = tttB.map((v,i)=>v?null:i).filter(x=>x!==null);
+  for(const i of emp){ tttB[i]='⭕'; if(tttWin(tttB)==='⭕') return; tttB[i]=''; }
+  for(const i of emp){ tttB[i]='❌'; if(tttWin(tttB)==='❌'){ tttB[i]='⭕'; return; } tttB[i]=''; }
+  const pick = emp.includes(4) ? 4 : emp[Math.floor(Math.random()*emp.length)];
+  tttB[pick] = '⭕';
+}
+function tttEnd(w){
+  tttOver = true;
+  const r = document.getElementById('tttRes');
+  if(w === '❌'){ r.textContent = 'Ты победила Соню! +5 баллов 🎉'; addPts(5); winGame(); }
+  else if(w === '⭕'){ r.textContent = 'Соня победила! Жми «Играть снова» 😼'; }
+  else { r.textContent = 'Ничья! +2 балла 🙂'; addPts(2); }
+}
+function tttReset(){
+  tttB = Array(9).fill(''); tttOver = false;
+  tttDraw();
+  document.getElementById('tttRes').textContent = 'Ты — ❌, ходи первой!';
+}
+tttDraw();
+
+let catchTick = null, catchTimer = null, catchScore = 0, catchActive = false, catchPos = -1;
+function catchDraw(){
+  const d = document.getElementById('catch');
+  d.innerHTML = '';
+  for(let i = 0; i < 9; i++){
+    const b = document.createElement('button');
+    b.style.cssText = 'aspect-ratio:1.4;font-size:36px;background:#fff;border:1px solid #c7d2fe;border-radius:12px;cursor:pointer';
+    b.onclick = ()=>catchHit(i);
+    d.appendChild(b);
+  }
+}
+function catchHit(i){
+  if(!catchActive || i !== catchPos) return;
+  catchPos = -1;
+  catchScore++;
+  if(cloud.get('sonya_ca_day') !== today){
+    cloud.set('sonya_ca_day', today);
+    cloud.set('sonya_ca_n','1');
+    addPts(1);
+  } else {
+    const n = parseInt(cloud.get('sonya_ca_n')||'0');
+    if(n < 10){ cloud.set('sonya_ca_n', n+1); addPts(1); }
+  }
+  const cells = document.getElementById('catch').children;
+  for(const c of cells) c.textContent = '';
+  document.getElementById('catchRes').textContent = 'Поймала! Счёт: ' + catchScore + ' 🐾';
+  if(catchScore >= 10) winGame();
+}
+function catchStart(){
+  if(catchActive) return;
+  catchDraw(); catchScore = 0; catchActive = true;
+  document.getElementById('catchRes').textContent = 'Лови Соню! ⏱ 20 секунд...';
+  const cells = document.getElementById('catch').children;
+  const jump = ()=>{
+    for(const c of cells) c.textContent = '';
+    catchPos = Math.floor(Math.random()*9);
+    cells[catchPos].textContent = ['🐱','😻','🙀'][Math.floor(Math.random()*3)];
+  };
+  jump();
+  catchTick = setInterval(jump, 800);
+  catchTimer = setTimeout(()=>{
+    clearInterval(catchTick); catchActive = false;
+    for(const c of cells) c.textContent = '';
+    document.getElementById('catchRes').textContent = 'Время! Поймано: ' + catchScore + '. ' + (catchScore >= 10 ? 'Ты — супер-охотница! 🎉' : 'Попробуй ещё!');
+  }, 20000);
+}
+catchDraw();
+
+const GAMES = [
+  {id:'game-rps', name:'✊✌️✋ Камень-ножницы-бумага'},
+  {id:'game-ttt', name:'❌⭕ Крестики-нолики'},
+  {id:'game-rid', name:'🧩 Три загадки от Сони'},
+  {id:'game-wheel', name:'🎡 Колесо фортуны'},
+  {id:'game-mem', name:'🃏 Мемори-пары'},
+  {id:'game-puzzle', name:'🧩 Пазл Сони'},
+  {id:'game-catch', name:'🐾 Поймай Соню'}
+];
+const WD = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+const gToday = (new Date().getDay()+6) % 7, gNext = (gToday+1) % 7;
+GAMES.forEach((g,i)=>{ document.getElementById(g.id).className = 'game' + (i === gToday ? ' on' : ''); });
+document.getElementById('gameName').textContent = 'Сегодня ' + WD[new Date().getDay()] + ': ' + GAMES[gToday].name;
+document.getElementById('gameNext').textContent = 'Завтра: ' + GAMES[gNext].name + ' · заходи каждый день!';
+ridShow();
+wheelDraw();
+document.getElementById('wheelRes').textContent = 'Осталось прокруток сегодня: ' + wheelSpinsLeft() + '. Джекпот — +20!';
+
+function dlPostcard(e){
+  if(e) e.preventDefault();
+  const url = document.getElementById('cv').toDataURL('image/png');
+  let plat = '';
+  try{ plat = new URLSearchParams(location.search).get('vk_platform')||''; }catch(err){}
+  const isMobile = plat.indexOf('mobile') === 0;
+  if(window.vkBridge && isMobile){
+    vkBridge.send('VKWebAppDownloadFile',{url:url, filename:'otkrytka-sonya.png'}).catch(()=>{
+      vkBridge.send('VKWebAppShowImages',{images:[url]}).catch(()=>{
+        alert('Не получилось скачать автоматически — сделай скриншот открытки 💜');
+      });
+    });
+  } else {
+    const a = document.createElement('a');
+    a.href = url; a.download = 'otkrytka-sonya.png';
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  return false;
+}
+function gift(){
+  const name = (document.getElementById('gName').value||'Любимка').slice(0,20);
+  const hol = document.getElementById('gHol').value;
+  const idx = document.getElementById('gHol').selectedIndex;
+  const WISHES = [
+    [['«Расти большой,','не будь лапшой!»'],['«Пусть сбудется всё,','даже несбыточное!»'],['«Счастья — полную миску,','любви — бездонную!»'],['«Мурчи громче —','мечты услышат!»']],
+    [['«Пусть год будет мягким,','как кошачьи лапки!»'],['«Снега — пушистого,','счастья — много!»'],['«Новых высот —','без падений с полок!»'],['«Всё плохое — в старый год,','хорошее — в новый!»']],
+    [['«Цвети, мурчи,','сияй ярче всех!»'],['«Ты — главная кошечка,','помни об этом!»'],['«Комплиментов — море,','забот — ноль!»'],['«Пусть тебя носят на руках,','как положено!»']],
+    [['«Пусть всё сбудется,','а миска всегда полна!»'],['«Обнимаю лапами,','мурчу от души!»'],['«Ты — чудо,','это официально!»'],['«Хорошего дня —','просто так!»']]
+  ];
+  const w = WISHES[idx][Math.floor(Math.random()*WISHES[idx].length)];
+  const cv = document.getElementById('cv'), c = cv.getContext('2d');
+  const g = c.createLinearGradient(0,0,600,800);
+  g.addColorStop(0,'#ffffff'); g.addColorStop(1,'#e4dbf7');
+  c.fillStyle = g; c.fillRect(0,0,600,800);
+  for(let i=0;i<60;i++){
+    c.fillStyle = 'rgba(99,102,241,'+(Math.random()*0.3+0.08)+')';
+    const r = Math.random()*3+1;
+    c.beginPath(); c.arc(Math.random()*600, Math.random()*800, r, 0, 7); c.fill();
+  }
+  c.textAlign = 'center';
+  c.font = '110px serif'; c.fillText('🐱', 300, 220);
+  c.fillStyle = '#4f46e5'; c.font = 'bold 44px sans-serif';
+  c.fillText(hol, 300, 320);
+  c.fillStyle = '#6d28d9'; c.font = 'bold 56px sans-serif';
+  c.fillText(name + '!', 300, 410);
+  c.fillStyle = '#6b6590'; c.font = '30px sans-serif';
+  c.fillText('Соня мурчит тебе:', 300, 500);
+  c.fillStyle = '#2e2a4a'; c.font = 'italic 32px sans-serif';
+  c.fillText(w[0], 300, 560);
+  c.fillText(w[1], 300, 605);
+  c.font = '60px serif'; c.fillText('💜', 300, 710);
+  c.fillStyle = '#8a83ad'; c.font = '24px sans-serif';
+  c.fillText('Кошка Соня · приложение стаи', 300, 760);
+  document.getElementById('postcard').style.display = 'block';
+  document.getElementById('dlBtn').href = cv.toDataURL('image/png');
+  document.getElementById('b5').className = 'badge open';
+  document.getElementById('postcard').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+</script>
+</body>
+</html>
