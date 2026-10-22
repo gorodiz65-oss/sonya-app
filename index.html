@@ -259,7 +259,17 @@ const cloud = {
         // Keep values written by this page while VK Storage was loading. This
         // prevents stale cloud dates from overwriting today's login marker.
         if(lv !== (k in initial ? initial[k] : null)){
-          if(lv!==null && lv!==undefined) this.set(k,lv);
+          // Resolve concurrent/stale writes without losing a higher point balance
+          // or resetting the user's original first-visit date.
+          if(k==='sonya_pts'){
+            const m = String(Math.max(parseInt(lv||'0'), parseInt(cv||'0')));
+            this.cache[k]=m; try{localStorage.setItem(k,m);}catch(e){}
+            if(m!==cv) this.set(k,m);
+          } else if(k==='sonya_first' && cv!==undefined && cv!==null){
+            const m = String(Math.min(parseInt(lv), parseInt(cv)));
+            this.cache[k]=m; try{localStorage.setItem(k,m);}catch(e){}
+            if(m!==cv) this.set(k,m);
+          } else if(lv!==null && lv!==undefined) this.set(k,lv);
           return;
         }
         if(cv!==undefined && cv!==null && cv!==''){
